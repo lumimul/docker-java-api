@@ -59,6 +59,7 @@ final class UnixHttpClient extends HttpClientEnvelope {
             pool.setDefaultMaxPerRoute(10);
             pool.setMaxTotal(10);
             return HttpClientBuilder.create()
+                .setRequestExecutor(new HijackingHttpRequestExecutor(3000))
                 .setConnectionManager(pool)
                 .addInterceptorFirst(new UserAgentRequestHeader())
                 .build();

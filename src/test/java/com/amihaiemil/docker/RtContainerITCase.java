@@ -25,8 +25,13 @@
  */
 package com.amihaiemil.docker;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.stream.Collectors;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
@@ -235,6 +240,50 @@ public final class RtContainerITCase {
                 container.inspect().getJsonArray("ExecIDs").getString(0),
                 new IsEqual<>(exec.inspect().getString("ID"))
         );
+        container.stop();
+        container.remove();
+    }
+
+    /**
+     * {@link RtContainer} Can create Exec of Docker container it represents.
+     * @throws Exception If something goes wrong.
+     */
+    @Test
+    public void startExecContainer() throws Exception {
+        final Container container = new UnixDocker(
+                new File("/var/run/docker.sock")
+        ).containers().create("TestStart", this.containerJsonObject());
+        container.start();
+        MatcherAssert.assertThat(
+                this.runningState(container),
+                new IsEqual<>(true)
+        );
+        final JsonObject json = Json.createObjectBuilder()
+                .add("Cmd", Json.createArrayBuilder().add("date").build())
+                .add("Tty", true)
+                .add("AttachStdout", true)
+                .add("AttachStdin", true)
+                .add("AttachStderr", true)
+                .build();
+        Exec exec = container.exec(json);
+        MatcherAssert.assertThat(
+                container.inspect().getJsonArray("ExecIDs").size(),
+                new IsEqual<>(1)
+        );
+        MatcherAssert.assertThat(
+                container.inspect().getJsonArray("ExecIDs").getString(0),
+                new IsEqual<>(exec.inspect().getString("ID"))
+        );
+        try {
+            final byte[] tmp = "byte".getBytes();
+            InputStream is = new ByteArrayInputStream(tmp);
+            System.out.println(exec.start(false, true, is));
+
+            System.out.println(new BufferedReader(new InputStreamReader(is)).lines()
+                    .parallel().collect(Collectors.joining("\n")));
+        } catch (Exception e){
+            e.printStackTrace();
+        }
         container.stop();
         container.remove();
     }

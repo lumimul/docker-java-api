@@ -25,11 +25,22 @@
  */
 package com.amihaiemil.docker;
 
+import org.apache.http.HttpStatus;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
 
+import javax.json.Json;
 import javax.json.JsonObject;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 import java.net.URI;
+
+import static com.amihaiemil.docker.HijackingHttpRequestExecutor.HIJACKED_INPUT_ATTRIBUTE;
 
 /**
  * Exec. A batch of commands that are running inside a Container.
@@ -70,6 +81,45 @@ final class RtExec implements Exec {
     public JsonObject inspect()
         throws IOException, UnexpectedResponseException {
         return new Inspection(this.client, this.baseUri.toString() + "/json");
+    }
+
+    @Override
+    public Reader start(final boolean detach, final boolean tty, final InputStream hijackedInput)
+        throws IOException, UnexpectedResponseException {
+        final HttpPost start =
+            new HttpPost(
+                String.format("%s/%s", this.baseUri.toString(), "start")
+            );
+        HttpContext context = new BasicHttpContext();
+        context.setAttribute(HIJACKED_INPUT_ATTRIBUTE, hijackedInput);
+        start.setHeader("Upgrade", "tcp");
+        start.setHeader("Connection", "Upgrade");
+
+        try {
+            start.setEntity(
+                new StringEntity(
+                    Json.createObjectBuilder()
+                        .add("Detach", detach)
+                        .add("Tty", tty)
+                        .build()
+                        .toString(),
+                    ContentType.APPLICATION_JSON
+                )
+            );
+            Reader execute = this.client.execute(
+                start,
+                new ReadStream(
+                    new MatchStatus(
+                        start.getURI(),
+                        HttpStatus.SC_OK
+                    )
+                ),
+                context
+            );
+            return execute;
+        } finally {
+            start.releaseConnection();
+        }
     }
 
 }

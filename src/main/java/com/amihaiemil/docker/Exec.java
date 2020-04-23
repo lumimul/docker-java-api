@@ -27,6 +27,8 @@ package com.amihaiemil.docker;
 
 import javax.json.JsonObject;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 
 /**
  * Exec containing the commands to be run within a Container.
@@ -37,7 +39,20 @@ import java.io.IOException;
 public interface Exec {
 
     /**
-     * Return JSON information about this Ezec.
+     * Return JSON information about this start Exec.
+     * @param detach Detach from the command.
+     * @param tty Allocate a pseudo-TTY.
+     * @return JsonObject information.
+     * @see <a href="https://docs.docker.com/engine/api/v1.40/#operation/ExecStart">Inspect Exec</a>
+     * @throws IOException If something goes wrong.
+     * @throws UnexpectedResponseException If the status response is not
+     *  the expected one (200 OK).
+     */
+    Reader start(boolean detach, boolean tty, InputStream inputStream)
+        throws IOException, UnexpectedResponseException;
+
+    /**
+     * Return JSON information about this Exec.
      * @return JsonObject information.
      * @see <a href="https://docs.docker.com/engine/api/v1.40/#operation/ExecInspect">Inspect Exec</a>
      * @throws IOException If something goes wrong.
